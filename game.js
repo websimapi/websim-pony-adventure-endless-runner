@@ -14,10 +14,17 @@ class PonyGame {
             width: 60,
             height: 50,
             velocityY: 0,
+            velocityX: 0,
             onGround: true,
             color: '#FF69B4',
             canDoubleJump: false,
-            hasUsedDoubleJump: false
+            hasUsedDoubleJump: false,
+            dashCooldown: 0,
+            dashMaxCooldown: 60, // 1 second at 60fps
+            dashPower: 8,
+            isDashing: false,
+            dashDuration: 0,
+            dashMaxDuration: 15 // 0.25 seconds
         };
         
         this.obstacles = [];
@@ -54,10 +61,18 @@ class PonyGame {
                 e.preventDefault();
                 this.jump();
             }
+            if (e.code === 'KeyD' && this.gameRunning) {
+                e.preventDefault();
+                this.dash();
+            }
         });
         
         document.getElementById('jumpBtn').addEventListener('click', () => {
             if (this.gameRunning) this.jump();
+        });
+        
+        document.getElementById('dashBtn').addEventListener('click', () => {
+            if (this.gameRunning) this.dash();
         });
         
         document.getElementById('startBtn').addEventListener('click', () => {
@@ -106,6 +121,10 @@ class PonyGame {
         this.pony.onGround = true;
         this.pony.canDoubleJump = false;
         this.pony.hasUsedDoubleJump = false;
+        this.pony.velocityX = 0;
+        this.pony.dashCooldown = 0;
+        this.pony.isDashing = false;
+        this.pony.dashDuration = 0;
         this.gameSpeed = 3;
         this.obstacleSpawnRate = 0.008;
         this.lastObstacleX = -200;
@@ -152,14 +171,65 @@ class PonyGame {
         }
     }
     
+    dash() {
+        if (this.pony.dashCooldown <= 0) {
+            this.pony.velocityX = this.pony.dashPower;
+            this.pony.isDashing = true;
+            this.pony.dashDuration = this.pony.dashMaxDuration;
+            this.pony.dashCooldown = this.pony.dashMaxCooldown;
+            
+            // Add dash particles
+            for (let i = 0; i < 8; i++) {
+                this.particles.push({
+                    x: this.pony.x,
+                    y: this.pony.y + this.pony.height / 2 + (Math.random() - 0.5) * this.pony.height,
+                    velocityX: Math.random() * -6 - 2,
+                    velocityY: (Math.random() - 0.5) * 4,
+                    life: 20,
+                    color: '#00FFFF'
+                });
+            }
+        }
+    }
+    
     updatePony() {
         // Apply gravity
         if (!this.pony.onGround) {
             this.pony.velocityY += this.gravity;
         }
         
+        // Update dash
+        if (this.pony.isDashing) {
+            this.pony.dashDuration--;
+            if (this.pony.dashDuration <= 0) {
+                this.pony.isDashing = false;
+            }
+        } else {
+            // Apply friction to horizontal velocity when not dashing
+            this.pony.velocityX *= 0.9;
+            if (Math.abs(this.pony.velocityX) < 0.1) {
+                this.pony.velocityX = 0;
+            }
+        }
+        
+        // Update dash cooldown
+        if (this.pony.dashCooldown > 0) {
+            this.pony.dashCooldown--;
+        }
+        
         // Update position
         this.pony.y += this.pony.velocityY;
+        this.pony.x += this.pony.velocityX;
+        
+        // Keep pony on screen (don't let it dash off screen)
+        if (this.pony.x > this.canvas.width - this.pony.width) {
+            this.pony.x = this.canvas.width - this.pony.width;
+            this.pony.velocityX = 0;
+        }
+        if (this.pony.x < 0) {
+            this.pony.x = 0;
+            this.pony.velocityX = 0;
+        }
         
         // Ground collision
         if (this.pony.y >= this.groundY - this.pony.height) {
@@ -331,6 +401,16 @@ class PonyGame {
             this.score++;
             document.getElementById('score').textContent = this.score;
             
+            // Update dash button state
+            const dashBtn = document.getElementById('dashBtn');
+            if (this.pony.dashCooldown > 0) {
+                dashBtn.disabled = true;
+                dashBtn.textContent = `⏳ ${Math.ceil(this.pony.dashCooldown / 60)}s`;
+            } else {
+                dashBtn.disabled = false;
+                dashBtn.textContent = '⚡ DASH';
+            }
+            
             // Increase game speed and difficulty more gradually
             if (this.score % 150 === 0) {
                 this.gameSpeed += 0.3; // Slower speed increase
@@ -343,6 +423,12 @@ class PonyGame {
     drawPony() {
         const ctx = this.ctx;
         const pony = this.pony;
+        
+        // Add dash effect
+        if (pony.isDashing) {
+            ctx.shadowColor = '#00FFFF';
+            ctx.shadowBlur = 15;
+        }
         
         // Pony body (ellipse)
         ctx.fillStyle = pony.color;
@@ -391,6 +477,9 @@ class PonyGame {
         ctx.beginPath();
         ctx.ellipse(pony.x - 5, pony.y + pony.height/2, 6, 20, 0.2, 0, 2 * Math.PI);
         ctx.fill();
+        
+        // Reset shadow
+        ctx.shadowBlur = 0;
     }
     
     drawObstacles() {
@@ -514,6 +603,23 @@ class PonyGame {
             
             this.ctx.fillStyle = '#FFD700';
             this.ctx.fillRect(10, 35, barWidth * progress, barHeight);
+        }
+        
+        // Draw dash cooldown indicator
+        if (this.pony.dashCooldown > 0) {
+            const barWidth = 80;
+            const barHeight = 6;
+            const progress = 1 - (this.pony.dashCooldown / this.pony.dashMaxCooldown);
+            
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.fillRect(10, 55, barWidth, barHeight);
+            
+            this.ctx.fillStyle = '#00FFFF';
+            this.ctx.fillRect(10, 55, barWidth * progress, barHeight);
+            
+            this.ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+            this.ctx.font = '12px Arial';
+            this.ctx.fillText('DASH COOLDOWN', 10, 52);
         }
     }
     
