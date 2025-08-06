@@ -25,33 +25,43 @@ class PonyGame {
             canDoubleJump: false,
             hasUsedDoubleJump: false,
             dashCooldown: 0,
-            dashMaxCooldown: 60, // 1 second at 60fps
+            dashMaxCooldown: 45, // Reduced from 60 for faster dash recharge
             isDashing: false,
             dashDuration: 0,
-            dashMaxDuration: 15, // 0.25 seconds
+            dashMaxDuration: 20, // Increased from 15 for longer dash
             lives: 3,
             invincible: false,
             invincibilityDuration: 0,
-            maxInvincibilityDuration: 120 // 2 seconds at 60fps
+            maxInvincibilityDuration: 180 // Increased from 120 for longer invincibility
         };
         
         this.obstacles = [];
         this.powerUps = [];
         this.clouds = [];
         this.particles = [];
+        this.coins = [];
         
         // Game settings
-        this.gravity = 0.8;
-        this.jumpPower = -15;
-        this.gameSpeed = 1.5; // Reduced from 3 to make it easier at start
+        this.gravity = 0.6; // Reduced from 0.8
+        this.jumpPower = -16; // Increased from -15 
+        this.gameSpeed = 1.0; // Reduced from 1.5 to make it much easier at start
         this.dashSpeedMultiplier = 1; // New property for dash speed boost
-        this.obstacleSpawnRate = 0.003; // Reduced from 0.008 to spawn fewer obstacles initially
+        this.obstacleSpawnRate = 0.002; // Reduced from 0.003 to spawn fewer obstacles
         this.lastObstacleX = -200; // Track last obstacle position
-        this.minObstacleDistance = 200; // Increased from 150 for more spacing
-        this.powerUpSpawnRate = 0.005; // Increased from 0.003 for more power-ups
+        this.minObstacleDistance = 300; // Increased from 200 for much more spacing
+        this.powerUpSpawnRate = 0.008; // Increased from 0.005 for more power-ups
         this.lastPowerUpX = -300;
         this.doubleJumpDuration = 0;
         this.doubleJumpMaxDuration = 300; // 5 seconds at 60fps
+        
+        // New features
+        this.coinSpawnRate = 0.01; // Frequent coin spawns
+        this.lastCoinX = -100;
+        this.scoreMultiplier = 1;
+        this.multiplierDuration = 0;
+        this.combo = 0;
+        this.comboTimer = 0;
+        this.maxComboTimer = 180; // 3 seconds to maintain combo
         
         // Ground
         this.groundY = 350;
@@ -147,6 +157,7 @@ class PonyGame {
         this.score = 0;
         this.obstacles = [];
         this.powerUps = [];
+        this.coins = [];
         this.particles = [];
         this.pony.y = this.groundY - this.pony.height;
         this.pony.velocityY = 0;
@@ -160,13 +171,19 @@ class PonyGame {
         this.pony.invincible = false;
         this.pony.invincibilityDuration = 0;
         this.dashSpeedMultiplier = 1; // Reset dash speed multiplier
-        this.gameSpeed = 1.5; // Reset to easier starting speed
-        this.obstacleSpawnRate = 0.003; // Reset to easier spawn rate
+        this.gameSpeed = 1.0; // Reset to easier starting speed
+        this.obstacleSpawnRate = 0.002; // Reset to easier spawn rate
         this.lastObstacleX = -200;
-        this.minObstacleDistance = 200; // Reset to more spacing
-        this.powerUpSpawnRate = 0.005; // More frequent power-ups
+        this.minObstacleDistance = 300; // Reset to more spacing
+        this.powerUpSpawnRate = 0.008; // More frequent power-ups
         this.lastPowerUpX = -300;
         this.doubleJumpDuration = 0;
+        // Reset new features
+        this.lastCoinX = -100;
+        this.scoreMultiplier = 1;
+        this.multiplierDuration = 0;
+        this.combo = 0;
+        this.comboTimer = 0;
         this.updateScore();
         this.updateLives();
     }
@@ -284,12 +301,37 @@ class PonyGame {
             if (Math.random() < this.obstacleSpawnRate) {
                 this.obstacles.push({
                     x: currentX,
-                    y: this.groundY - 30, // Smaller height
-                    width: 20, // Smaller width
-                    height: 30, // Smaller height
+                    y: this.groundY - 25, // Smaller height
+                    width: 15, // Even smaller width
+                    height: 25, // Even smaller height
                     color: '#8B4513'
                 });
                 this.lastObstacleX = currentX;
+            }
+        }
+    }
+
+    spawnCoin() {
+        const currentX = this.canvas.width;
+        
+        if (currentX - this.lastCoinX >= 80) {
+            if (Math.random() < this.coinSpawnRate) {
+                // Check if there's an obstacle nearby
+                const hasNearbyObstacle = this.obstacles.some(obs => 
+                    Math.abs(obs.x - currentX) < 100
+                );
+                
+                if (!hasNearbyObstacle) {
+                    this.coins.push({
+                        x: currentX,
+                        y: this.groundY - 40 - Math.random() * 60, // Random height
+                        width: 20,
+                        height: 20,
+                        glow: 0,
+                        collected: false
+                    });
+                    this.lastCoinX = currentX;
+                }
             }
         }
     }
@@ -298,16 +340,16 @@ class PonyGame {
         const currentX = this.canvas.width;
         
         // Spawn power-ups less frequently and away from obstacles
-        if (currentX - this.lastPowerUpX >= 150) { // Reduced from 200 for more frequent spawns
+        if (currentX - this.lastPowerUpX >= 120) { // Reduced for more frequent spawns
             if (Math.random() < this.powerUpSpawnRate) {
                 // Check if there's an obstacle nearby
                 const hasNearbyObstacle = this.obstacles.some(obs => 
-                    Math.abs(obs.x - currentX) < 80 // Reduced from 100 for better placement
+                    Math.abs(obs.x - currentX) < 80
                 );
                 
                 if (!hasNearbyObstacle) {
-                    // Add variety to power-ups
-                    const powerUpTypes = ['doubleJump', 'speed', 'shield'];
+                    // Add variety to power-ups including new ones
+                    const powerUpTypes = ['doubleJump', 'speed', 'shield', 'life', 'multiplier', 'slowMotion'];
                     const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
                     
                     let powerUp = {
@@ -329,6 +371,18 @@ class PonyGame {
                         case 'shield':
                             powerUp.color = '#4169E1';
                             powerUp.y = this.groundY - 70;
+                            break;
+                        case 'life':
+                            powerUp.color = '#FF1493';
+                            powerUp.y = this.groundY - 75;
+                            break;
+                        case 'multiplier':
+                            powerUp.color = '#9932CC';
+                            powerUp.y = this.groundY - 65;
+                            break;
+                        case 'slowMotion':
+                            powerUp.color = '#00CED1';
+                            powerUp.y = this.groundY - 85;
                             break;
                     }
                     
@@ -379,6 +433,38 @@ class PonyGame {
             }
         });
     }
+
+    updateCoins() {
+        this.coins = this.coins.filter(coin => {
+            coin.x -= this.gameSpeed * this.dashSpeedMultiplier;
+            coin.glow += 0.3; // For glowing effect
+            return coin.x + coin.width > 0;
+        });
+        
+        // Update lastCoinX position
+        if (this.coins.length > 0) {
+            const rightmostCoin = this.coins[this.coins.length - 1];
+            if (rightmostCoin.x < this.canvas.width) {
+                this.lastCoinX = rightmostCoin.x;
+            }
+        }
+    }
+
+    updateGameFeatures() {
+        // Update score multiplier
+        if (this.multiplierDuration > 0) {
+            this.multiplierDuration--;
+        } else {
+            this.scoreMultiplier = 1;
+        }
+        
+        // Update combo timer
+        if (this.comboTimer > 0) {
+            this.comboTimer--;
+        } else if (this.combo > 0) {
+            this.combo = 0; // Reset combo if timer runs out
+        }
+    }
     
     updateParticles() {
         this.particles = this.particles.filter(particle => {
@@ -403,6 +489,36 @@ class PonyGame {
             });
         }
 
+        // Check coin collisions
+        this.coins = this.coins.filter(coin => {
+            if (!coin.collected && 
+                this.pony.x < coin.x + coin.width &&
+                this.pony.x + this.pony.width > coin.x &&
+                this.pony.y < coin.y + coin.height &&
+                this.pony.y + this.pony.height > coin.y) {
+                
+                // Collect coin
+                coin.collected = true;
+                this.score += 10 * this.scoreMultiplier;
+                this.combo++;
+                this.comboTimer = this.maxComboTimer;
+                
+                // Add collection particles
+                for (let i = 0; i < 8; i++) {
+                    this.particles.push({
+                        x: coin.x + coin.width / 2,
+                        y: coin.y + coin.height / 2,
+                        velocityX: (Math.random() - 0.5) * 6,
+                        velocityY: (Math.random() - 0.5) * 6,
+                        life: 40,
+                        color: '#FFD700'
+                    });
+                }
+                return false; // Remove collected coin
+            }
+            return !coin.collected; // Keep uncollected coins
+        });
+
         // Check power-up collisions
         if (this.powerUps && this.powerUps.length > 0) {
             this.powerUps = this.powerUps.filter(powerUp => {
@@ -416,14 +532,29 @@ class PonyGame {
                         this.doubleJumpDuration = this.doubleJumpMaxDuration;
                     } else if (powerUp.type === 'speed') {
                         // Temporary speed boost
-                        this.gameSpeed += 1;
+                        this.gameSpeed += 0.5; // Reduced boost for easier gameplay
                         setTimeout(() => {
-                            this.gameSpeed = Math.max(1.5, this.gameSpeed - 1);
+                            this.gameSpeed = Math.max(1.0, this.gameSpeed - 0.5);
                         }, 3000);
                     } else if (powerUp.type === 'shield') {
                         // Temporary invincibility
                         this.pony.invincible = true;
-                        this.pony.invincibilityDuration = 180; // 3 seconds
+                        this.pony.invincibilityDuration = 240; // 4 seconds
+                    } else if (powerUp.type === 'life') {
+                        // Restore a life
+                        this.pony.lives = Math.min(this.pony.lives + 1, 5); // Cap at 5 lives
+                        this.updateLives();
+                    } else if (powerUp.type === 'multiplier') {
+                        // Score multiplier
+                        this.scoreMultiplier = 2;
+                        this.multiplierDuration = 600; // 10 seconds
+                    } else if (powerUp.type === 'slowMotion') {
+                        // Slow down everything temporarily
+                        const originalSpeed = this.gameSpeed;
+                        this.gameSpeed *= 0.5;
+                        setTimeout(() => {
+                            this.gameSpeed = originalSpeed;
+                        }, 5000);
                     }
                         
                     // Add collection particles
@@ -484,7 +615,7 @@ class PonyGame {
     
     updateScore() {
         if (this.gameRunning) {
-            this.score++;
+            this.score += this.scoreMultiplier;
             document.getElementById('score').textContent = this.score;
             
             // Update dash button state
@@ -497,11 +628,11 @@ class PonyGame {
                 dashBtn.textContent = '⚡ DASH';
             }
             
-            // Increase game speed and difficulty more gradually
-            if (this.score % 200 === 0) { // Changed from 150 to 200 for slower progression
-                this.gameSpeed += 0.2; // Reduced from 0.3 for gentler increase
-                this.obstacleSpawnRate += 0.0008; // Reduced from 0.001 for slower spawn increase
-                this.minObstacleDistance = Math.max(150, this.minObstacleDistance - 3); // Slower reduction
+            // Increase game speed and difficulty much more gradually
+            if (this.score % 400 === 0) { // Changed from 200 to 400 for much slower progression
+                this.gameSpeed += 0.1; // Reduced from 0.2 for gentler increase
+                this.obstacleSpawnRate += 0.0005; // Reduced from 0.0008 for slower spawn increase
+                this.minObstacleDistance = Math.max(200, this.minObstacleDistance - 2); // Slower reduction
             }
         }
     }
@@ -558,20 +689,34 @@ class PonyGame {
         });
     }
     
-    drawGround() {
-        // Grass
-        this.ctx.fillStyle = '#32CD32';
-        this.ctx.fillRect(0, this.groundY, this.canvas.width, this.canvas.height - this.groundY);
-        
-        // Grass details
-        this.ctx.strokeStyle = '#228B22';
-        this.ctx.lineWidth = 2;
-        for (let x = 0; x < this.canvas.width; x += 20) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, this.groundY);
-            this.ctx.lineTo(x + Math.random() * 4 - 2, this.groundY - Math.random() * 10);
-            this.ctx.stroke();
-        }
+    drawCoins() {
+        this.coins.forEach(coin => {
+            if (!coin.collected) {
+                const ctx = this.ctx;
+                
+                // Glowing effect
+                const glowIntensity = Math.sin(coin.glow) * 0.5 + 0.5;
+                const floatOffset = Math.sin(coin.glow * 0.7) * 2;
+                
+                ctx.shadowColor = '#FFD700';
+                ctx.shadowBlur = 10 * glowIntensity;
+                
+                // Draw coin as golden circle
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(coin.x + coin.width/2, coin.y + coin.height/2 + floatOffset, coin.width/2, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Inner shine
+                ctx.fillStyle = '#FFF700';
+                ctx.beginPath();
+                ctx.arc(coin.x + coin.width/2 - 3, coin.y + coin.height/2 + floatOffset - 3, coin.width/4, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Reset shadow
+                ctx.shadowBlur = 0;
+            }
+        });
     }
     
     drawPowerUps() {
@@ -600,6 +745,9 @@ class PonyGame {
                     case 'doubleJump': text = '2X'; break;
                     case 'speed': text = 'S'; break;
                     case 'shield': text = '🛡'; break;
+                    case 'life': text = '💖'; break;
+                    case 'multiplier': text = 'X2'; break;
+                    case 'slowMotion': text = '⏰'; break;
                 }
                 ctx.fillText(text, powerUp.x + powerUp.width/2, powerUp.y + powerUp.height/2 + floatOffset + 4);
                 ctx.textAlign = 'left';
@@ -608,6 +756,22 @@ class PonyGame {
             // Reset shadow
             ctx.shadowBlur = 0;
         });
+    }
+    
+    drawGround() {
+        // Grass
+        this.ctx.fillStyle = '#32CD32';
+        this.ctx.fillRect(0, this.groundY, this.canvas.width, this.canvas.height - this.groundY);
+        
+        // Grass details
+        this.ctx.strokeStyle = '#228B22';
+        this.ctx.lineWidth = 2;
+        for (let x = 0; x < this.canvas.width; x += 20) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, this.groundY);
+            this.ctx.lineTo(x + Math.random() * 4 - 2, this.groundY - Math.random() * 10);
+            this.ctx.stroke();
+        }
     }
     
     draw() {
@@ -620,11 +784,48 @@ class PonyGame {
         
         this.drawClouds();
         this.drawGround();
+        this.drawCoins();
         this.drawObstacles();
         this.drawPowerUps();
         this.drawPony();
         this.drawParticles();
         
+        // Draw score multiplier indicator
+        if (this.scoreMultiplier > 1) {
+            this.ctx.fillStyle = 'rgba(153, 50, 204, 0.9)';
+            this.ctx.font = '16px Arial';
+            this.ctx.fillText(`${this.scoreMultiplier}X MULTIPLIER!`, 10, 50);
+            
+            // Progress bar for multiplier
+            const barWidth = 100;
+            const barHeight = 8;
+            const progress = this.multiplierDuration / 600;
+            
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.fillRect(10, 55, barWidth, barHeight);
+            
+            this.ctx.fillStyle = '#9932CC';
+            this.ctx.fillRect(10, 55, barWidth * progress, barHeight);
+        }
+        
+        // Draw combo indicator
+        if (this.combo > 1) {
+            this.ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
+            this.ctx.font = '14px Arial';
+            this.ctx.fillText(`COMBO x${this.combo}`, this.canvas.width - 120, 30);
+            
+            // Combo timer bar
+            const barWidth = 80;
+            const barHeight = 6;
+            const progress = this.comboTimer / this.maxComboTimer;
+            
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.fillRect(this.canvas.width - 120, 35, barWidth, barHeight);
+            
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.fillRect(this.canvas.width - 120, 35, barWidth * progress, barWidth);
+        }
+
         // Draw double jump indicator
         if (this.pony.canDoubleJump) {
             this.ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
@@ -652,7 +853,7 @@ class PonyGame {
             // Progress bar for shield
             const barWidth = 100;
             const barHeight = 8;
-            const maxShield = 180;
+            const maxShield = 240;
             const progress = this.pony.invincibilityDuration / maxShield;
             
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
@@ -686,10 +887,13 @@ class PonyGame {
         this.updatePony();
         this.spawnObstacle();
         this.spawnPowerUp();
+        this.spawnCoin();
         this.updateObstacles();
         this.updatePowerUps();
+        this.updateCoins();
         this.updateClouds();
         this.updateParticles();
+        this.updateGameFeatures();
         this.checkCollisions();
         
         if (this.gameRunning) {
