@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pony Adventure - Endless Runner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🦄 Pony Adventure</h1>
+            <div class="score-container">
+                <span>Score: </span>
+                <span id="score">0</span>
+                <span class="high-score">High Score: <span id="highScore">0</span></span>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        
+        <div class="game-controls">
+            <button id="jumpBtn" class="jump-button">🦄 JUMP</button>
+            <div class="instructions">
+                <p>Press SPACEBAR or click JUMP to make your pony leap over obstacles!</p>
+                <p>How far can you run? 🌈</p>
+            </div>
+        </div>
+        
+        <div id="gameOver" class="game-over hidden">
+            <div class="game-over-content">
+                <h2>Game Over! 💫</h2>
+                <p>Your pony ran <span id="finalScore">0</span> meters!</p>
+                <button id="restartBtn" class="restart-button">🦄 Run Again!</button>
+            </div>
+        </div>
+        
+        <div id="startScreen" class="start-screen">
+            <div class="start-content">
+                <h2>Welcome to Pony Adventure! 🦄</h2>
+                <p>Help your magical pony run as far as possible!</p>
+                <p>Jump over obstacles and collect points 🌟</p>
+                <button id="startBtn" class="start-button">🦄 Start Running!</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+
