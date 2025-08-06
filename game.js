@@ -22,7 +22,11 @@ class PonyGame {
             dashMaxCooldown: 60, // 1 second at 60fps
             isDashing: false,
             dashDuration: 0,
-            dashMaxDuration: 15 // 0.25 seconds
+            dashMaxDuration: 15, // 0.25 seconds
+            lives: 3,
+            invincible: false,
+            invincibilityDuration: 0,
+            maxInvincibilityDuration: 120 // 2 seconds at 60fps
         };
         
         this.obstacles = [];
@@ -123,6 +127,9 @@ class PonyGame {
         this.pony.dashCooldown = 0;
         this.pony.isDashing = false;
         this.pony.dashDuration = 0;
+        this.pony.lives = 3;
+        this.pony.invincible = false;
+        this.pony.invincibilityDuration = 0;
         this.dashSpeedMultiplier = 1; // Reset dash speed multiplier
         this.gameSpeed = 3;
         this.obstacleSpawnRate = 0.008;
@@ -132,6 +139,7 @@ class PonyGame {
         this.lastPowerUpX = -300;
         this.doubleJumpDuration = 0;
         this.updateScore();
+        this.updateLives();
     }
     
     jump() {
@@ -212,6 +220,14 @@ class PonyGame {
             this.pony.dashCooldown--;
         }
         
+        // Update invincibility
+        if (this.pony.invincible) {
+            this.pony.invincibilityDuration--;
+            if (this.pony.invincibilityDuration <= 0) {
+                this.pony.invincible = false;
+            }
+        }
+        
         // Update vertical position only
         this.pony.y += this.pony.velocityY;
         
@@ -239,9 +255,9 @@ class PonyGame {
             if (Math.random() < this.obstacleSpawnRate) {
                 this.obstacles.push({
                     x: currentX,
-                    y: this.groundY - 40,
-                    width: 30,
-                    height: 40,
+                    y: this.groundY - 30, // Smaller height
+                    width: 20, // Smaller width
+                    height: 30, // Smaller height
                     color: '#8B4513'
                 });
                 this.lastObstacleX = currentX;
@@ -328,15 +344,17 @@ class PonyGame {
     }
     
     checkCollisions() {
-        // Check obstacle collisions
-        this.obstacles.forEach(obstacle => {
-            if (this.pony.x < obstacle.x + obstacle.width &&
-                this.pony.x + this.pony.width > obstacle.x &&
-                this.pony.y < obstacle.y + obstacle.height &&
-                this.pony.y + this.pony.height > obstacle.y) {
-                this.gameOver();
-            }
-        });
+        // Check obstacle collisions only if not invincible
+        if (!this.pony.invincible) {
+            this.obstacles.forEach(obstacle => {
+                if (this.pony.x < obstacle.x + obstacle.width &&
+                    this.pony.x + this.pony.width > obstacle.x &&
+                    this.pony.y < obstacle.y + obstacle.height &&
+                    this.pony.y + this.pony.height > obstacle.y) {
+                    this.takeDamage();
+                }
+            });
+        }
 
         // Check power-up collisions
         if (this.powerUps && this.powerUps.length > 0) {
@@ -408,6 +426,11 @@ class PonyGame {
         const ctx = this.ctx;
         const pony = this.pony;
         
+        // Add invincibility flashing effect
+        if (pony.invincible && Math.floor(pony.invincibilityDuration / 10) % 2 === 0) {
+            ctx.globalAlpha = 0.5;
+        }
+        
         // Add dash effect
         if (pony.isDashing) {
             ctx.shadowColor = '#00FFFF';
@@ -462,8 +485,9 @@ class PonyGame {
         ctx.ellipse(pony.x - 5, pony.y + pony.height/2, 6, 20, 0.2, 0, 2 * Math.PI);
         ctx.fill();
         
-        // Reset shadow
+        // Reset effects
         ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
     }
     
     drawObstacles() {
@@ -472,10 +496,10 @@ class PonyGame {
             this.ctx.fillStyle = obstacle.color;
             this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
             
-            // Tree top
+            // Tree top (smaller)
             this.ctx.fillStyle = '#228B22';
             this.ctx.beginPath();
-            this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y - 10, 20, 0, 2 * Math.PI);
+            this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y - 8, 15, 0, 2 * Math.PI);
             this.ctx.fill();
         });
     }
@@ -628,6 +652,25 @@ class PonyGame {
         this.update();
         this.draw();
         requestAnimationFrame(() => this.gameLoop());
+    }
+    
+    takeDamage() {
+        if (!this.pony.invincible) {
+            this.pony.lives--;
+            this.updateLives();
+            
+            // Make pony invincible briefly
+            this.pony.invincible = true;
+            this.pony.invincibilityDuration = this.pony.maxInvincibilityDuration;
+            
+            if (this.pony.lives <= 0) {
+                this.gameOver();
+            }
+        }
+    }
+
+    updateLives() {
+        document.getElementById('lives').textContent = this.pony.lives;
     }
 }
 
