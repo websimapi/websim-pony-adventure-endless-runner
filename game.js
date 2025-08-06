@@ -14,14 +14,12 @@ class PonyGame {
             width: 60,
             height: 50,
             velocityY: 0,
-            velocityX: 0,
             onGround: true,
             color: '#FF69B4',
             canDoubleJump: false,
             hasUsedDoubleJump: false,
             dashCooldown: 0,
             dashMaxCooldown: 60, // 1 second at 60fps
-            dashPower: 8,
             isDashing: false,
             dashDuration: 0,
             dashMaxDuration: 15 // 0.25 seconds
@@ -36,6 +34,7 @@ class PonyGame {
         this.gravity = 0.8;
         this.jumpPower = -15;
         this.gameSpeed = 3;
+        this.dashSpeedMultiplier = 1; // New property for dash speed boost
         this.obstacleSpawnRate = 0.008; // Reduced base spawn rate
         this.lastObstacleX = -200; // Track last obstacle position
         this.minObstacleDistance = 150; // Minimum distance between obstacles
@@ -121,10 +120,10 @@ class PonyGame {
         this.pony.onGround = true;
         this.pony.canDoubleJump = false;
         this.pony.hasUsedDoubleJump = false;
-        this.pony.velocityX = 0;
         this.pony.dashCooldown = 0;
         this.pony.isDashing = false;
         this.pony.dashDuration = 0;
+        this.dashSpeedMultiplier = 1; // Reset dash speed multiplier
         this.gameSpeed = 3;
         this.obstacleSpawnRate = 0.008;
         this.lastObstacleX = -200;
@@ -173,10 +172,11 @@ class PonyGame {
     
     dash() {
         if (this.pony.dashCooldown <= 0) {
-            this.pony.velocityX = this.pony.dashPower;
+            // Instead of moving pony, increase world speed
             this.pony.isDashing = true;
             this.pony.dashDuration = this.pony.dashMaxDuration;
             this.pony.dashCooldown = this.pony.dashMaxCooldown;
+            this.dashSpeedMultiplier = 2.5; // Make world move faster during dash
             
             // Add dash particles
             for (let i = 0; i < 8; i++) {
@@ -203,12 +203,7 @@ class PonyGame {
             this.pony.dashDuration--;
             if (this.pony.dashDuration <= 0) {
                 this.pony.isDashing = false;
-            }
-        } else {
-            // Apply friction to horizontal velocity when not dashing
-            this.pony.velocityX *= 0.9;
-            if (Math.abs(this.pony.velocityX) < 0.1) {
-                this.pony.velocityX = 0;
+                this.dashSpeedMultiplier = 1; // Reset speed multiplier when dash ends
             }
         }
         
@@ -217,19 +212,8 @@ class PonyGame {
             this.pony.dashCooldown--;
         }
         
-        // Update position
+        // Update vertical position only
         this.pony.y += this.pony.velocityY;
-        this.pony.x += this.pony.velocityX;
-        
-        // Keep pony on screen (don't let it dash off screen)
-        if (this.pony.x > this.canvas.width - this.pony.width) {
-            this.pony.x = this.canvas.width - this.pony.width;
-            this.pony.velocityX = 0;
-        }
-        if (this.pony.x < 0) {
-            this.pony.x = 0;
-            this.pony.velocityX = 0;
-        }
         
         // Ground collision
         if (this.pony.y >= this.groundY - this.pony.height) {
@@ -294,7 +278,7 @@ class PonyGame {
     
     updateObstacles() {
         this.obstacles = this.obstacles.filter(obstacle => {
-            obstacle.x -= this.gameSpeed;
+            obstacle.x -= this.gameSpeed * this.dashSpeedMultiplier; // Apply dash speed multiplier
             return obstacle.x + obstacle.width > 0;
         });
         
@@ -309,7 +293,7 @@ class PonyGame {
     
     updatePowerUps() {
         this.powerUps = this.powerUps.filter(powerUp => {
-            powerUp.x -= this.gameSpeed;
+            powerUp.x -= this.gameSpeed * this.dashSpeedMultiplier; // Apply dash speed multiplier
             powerUp.glow += 0.2; // For glowing effect
             return powerUp.x + powerUp.width > 0;
         });
@@ -325,7 +309,7 @@ class PonyGame {
     
     updateClouds() {
         this.clouds.forEach(cloud => {
-            cloud.x -= cloud.speed;
+            cloud.x -= cloud.speed * this.dashSpeedMultiplier; // Apply dash speed multiplier
             if (cloud.x + cloud.size < 0) {
                 cloud.x = this.canvas.width + cloud.size;
                 cloud.y = Math.random() * 150 + 50;
