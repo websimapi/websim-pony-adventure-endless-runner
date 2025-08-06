@@ -285,32 +285,34 @@ class PonyGame {
         });
 
         // Check power-up collisions
-        this.powerUps = this.powerUps.filter(powerUp => {
-            if (this.pony.x < powerUp.x + powerUp.width &&
-                this.pony.x + this.pony.width > powerUp.x &&
-                this.pony.y < powerUp.y + powerUp.height &&
-                this.pony.y + this.pony.height > powerUp.y) {
-                
-                // Collect power-up
-                if (powerUp.type === 'doubleJump') {
-                    this.doubleJumpDuration = this.doubleJumpMaxDuration;
+        if (this.powerUps && this.powerUps.length > 0) {
+            this.powerUps = this.powerUps.filter(powerUp => {
+                if (powerUp && this.pony.x < powerUp.x + powerUp.width &&
+                    this.pony.x + this.pony.width > powerUp.x &&
+                    this.pony.y < powerUp.y + powerUp.height &&
+                    this.pony.y + this.pony.height > powerUp.y) {
                     
-                    // Add collection particles
-                    for (let i = 0; i < 10; i++) {
-                        this.particles.push({
-                            x: powerUp.x + powerUp.width / 2,
-                            y: powerUp.y + powerUp.height / 2,
-                            velocityX: (Math.random() - 0.5) * 8,
-                            velocityY: (Math.random() - 0.5) * 8,
-                            life: 50,
-                            color: '#FFD700'
-                        });
+                    // Collect power-up
+                    if (powerUp.type === 'doubleJump') {
+                        this.doubleJumpDuration = this.doubleJumpMaxDuration;
+                        
+                        // Add collection particles
+                        for (let i = 0; i < 10; i++) {
+                            this.particles.push({
+                                x: powerUp.x + powerUp.width / 2,
+                                y: powerUp.y + powerUp.height / 2,
+                                velocityX: (Math.random() - 0.5) * 8,
+                                velocityY: (Math.random() - 0.5) * 8,
+                                life: 50,
+                                color: '#FFD700'
+                            });
+                        }
                     }
+                    return false; // Remove collected power-up
                 }
-                return false; // Remove collected power-up
-            }
-            return true; // Keep uncollected power-up
-        });
+                return true; // Keep uncollected power-up
+            });
+        }
     }
     
     gameOver() {
