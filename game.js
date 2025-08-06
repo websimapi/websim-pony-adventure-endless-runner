@@ -387,6 +387,33 @@ class PonyGame {
         }
     }
     
+    takeDamage() {
+        this.pony.lives--;
+        this.pony.invincible = true;
+        this.pony.invincibilityDuration = this.pony.maxInvincibilityDuration;
+        this.updateLives();
+        
+        if (this.pony.lives <= 0) {
+            this.gameOver();
+        }
+        
+        // Add damage particles
+        for (let i = 0; i < 10; i++) {
+            this.particles.push({
+                x: this.pony.x + this.pony.width / 2,
+                y: this.pony.y + this.pony.height / 2,
+                velocityX: (Math.random() - 0.5) * 8,
+                velocityY: (Math.random() - 0.5) * 8,
+                life: 40,
+                color: '#FF0000'
+            });
+        }
+    }
+    
+    updateLives() {
+        document.getElementById('lives').textContent = this.pony.lives;
+    }
+    
     gameOver() {
         this.gameRunning = false;
         if (this.score > this.highScore) {
@@ -652,25 +679,6 @@ class PonyGame {
         this.update();
         this.draw();
         requestAnimationFrame(() => this.gameLoop());
-    }
-    
-    takeDamage() {
-        if (!this.pony.invincible) {
-            this.pony.lives--;
-            this.updateLives();
-            
-            // Make pony invincible briefly
-            this.pony.invincible = true;
-            this.pony.invincibilityDuration = this.pony.maxInvincibilityDuration;
-            
-            if (this.pony.lives <= 0) {
-                this.gameOver();
-            }
-        }
-    }
-
-    updateLives() {
-        document.getElementById('lives').textContent = this.pony.lives;
     }
 }
 
